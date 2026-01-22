@@ -1,6 +1,5 @@
 import os
 import streamlit as st
-import joblib
 import numpy as np
 import pandas as pd
 
@@ -16,6 +15,7 @@ def header():
         """,
         unsafe_allow_html=True,
     )
+
 header()
 
 MODEL_DIR = os.path.join(os.path.dirname(__file__), 'models') 
@@ -26,11 +26,19 @@ def models_exist():
 
 @st.cache_data
 def load_data(path="Ice_Cream.csv"):
-    df = pd.read_csv(path)
-    df['Temperature'] = pd.to_numeric(df['Temperature'], errors='coerce')
-    df['Revenue'] = pd.to_numeric(df['Revenue'], errors='coerce')
-    df = df.dropna()
-    return df
+    try:
+        df = pd.read_csv(path)
+        df['Temperature'] = pd.to_numeric(df['Temperature'], errors='coerce')
+        df['Revenue'] = pd.to_numeric(df['Revenue'], errors='coerce')
+        df = df.dropna()
+        return df
+    except FileNotFoundError:
+        st.error(f"Data file not found: {path}. Please ensure Ice_Cream.csv is in the same directory as app.py")
+        st.stop()
+    except Exception as e:
+        st.error(f"Error loading data: {e}")
+        st.stop()
+
 df = load_data()
 
 st.markdown("---") 
@@ -52,6 +60,13 @@ if not models_exist():
         st.markdown(
             "1. Open **training_notebook.ipynb** and run all cells.\n2. That creates `models/` with trained artifacts.\n3. Refresh this page."
         )
+    st.stop()
+
+# Import joblib only after checking if models exist
+try:
+    import joblib
+except ImportError:
+    st.error("Required package 'joblib' is not installed. Please install it using: pip install joblib")
     st.stop()
 
 try:
@@ -157,9 +172,12 @@ with right:
     st.subheader("⚙️ Quick Actions")
     
     model_path = os.path.join(MODEL_DIR, 'svm_model.joblib')
-    with open(model_path, 'rb') as fh:
-        model_bytes = fh.read()
-    st.download_button('Download SVM Model (.joblib)', data=model_bytes, file_name='svm_model.joblib', mime='application/octet-stream')
+    try:
+        with open(model_path, 'rb') as fh:
+            model_bytes = fh.read()
+        st.download_button('Download SVM Model (.joblib)', data=model_bytes, file_name='svm_model.joblib', mime='application/octet-stream')
+    except Exception as e:
+        st.error(f"Error loading model file for download: {e}")
 
 st.markdown("---")
 with st.expander("🛠️ Technical Details (Classification Reports & Confusion Matrices)"):
